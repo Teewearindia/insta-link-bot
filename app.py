@@ -58,4 +58,4 @@ def send_dm(user_id, text):
     print(f"📬 DM Sent: {response.status_code} - {response.text}")
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(host="0.0.0.0", port=10000)
