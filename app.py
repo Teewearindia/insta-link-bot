@@ -22,22 +22,34 @@ def webhook():
         data = request.get_json()
         print("📩 Received:", json.dumps(data, indent=2))
 
-        try:
-            entry = data["entry"][0]
+        if not data:
+            print("⚠️ No JSON data received")
+            return "No data", 400
 
-            if "changes" in entry:  # Reel comment
+        try:
+            entry = data.get("entry", [])[0]
+
+            if "changes" in entry:
                 change = entry["changes"][0]
-                value = change["value"]
+                value = change.get("value", {})
                 comment_text = value.get("text", "")
                 commenter_id = value.get("from", {}).get("id")
                 post_id = value.get("post_id")
 
+                if not (comment_text and commenter_id and post_id):
+                    print("⚠️ Missing required fields in webhook payload")
+                    return "Missing fields", 400
+
                 if "link" in comment_text.lower():
                     product_url = post_map.get(post_id)
-                    if product_url and commenter_id:
+                    if product_url:
                         send_dm(commenter_id, product_url)
+                    else:
+                        print(f"🔍 No mapping found for post_id: {post_id}")
+                else:
+                    print("📌 Comment doesn't contain 'link', skipping.")
             else:
-                print("⚠️ Skipping non-comment event")
+                print("⚠️ No 'changes' found in entry, skipping.")
 
         except Exception as e:
             print(f"❌ Error handling webhook: {e}")
@@ -54,8 +66,11 @@ def send_dm(user_id, text):
         "access_token": ACCESS_TOKEN
     }
 
-    response = requests.post(url, headers=headers, json=payload)
-    print(f"📬 DM Sent: {response.status_code} - {response.text}")
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        print(f"📬 DM Sent: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Failed to send DM: {e}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
